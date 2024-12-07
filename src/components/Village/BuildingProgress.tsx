@@ -25,6 +25,14 @@ interface BuildingProgressProps {
     currentResources: Resources;
 }
 
+interface SpeedUpCostProps {
+    speedUpCount: number;
+    onSpeedUp: (usePoints: boolean) => void;
+    availablePoints: number;
+    currentResources: Resources;
+    onOpenSpeedUp: () => void;
+}
+
 export const BuildingProgress = ({ 
     building, 
     onConstructionComplete, 

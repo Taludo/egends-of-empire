@@ -3,8 +3,8 @@ import { IconType } from 'react-icons';
 
 export interface Resources {
     wood: number;
-    iron: number;
     stone: number;
+    iron: number;
     food: number;
     [key: string]: number; // Permet l'indexation dynamique
 }
@@ -12,9 +12,10 @@ export interface Resources {
 export interface ProductionRates extends Resources {}
 
 export interface Building {
-    id: string;
+    id?: string;
     name: string;
     description: string;
+    type: string;
     level: number;
     maxLevel: number;
     production?: Partial<Resources>;
@@ -24,14 +25,15 @@ export interface Building {
     requirements: {
         level: number;
     };
-    icon: IconType;
+    icon?: IconType;
 }
 
 export interface BuildingInstance {
     id: string;
+    type: string;
     level: number;
-    constructionStartTime?: Timestamp;
-    constructionEndTime?: Timestamp;
+    constructionStartTime?: number;
+    constructionEndTime?: number;
     speedUpCount?: number; // Nombre de fois que la construction a été accélérée
 }
 
@@ -54,7 +56,7 @@ export interface UserVillage {
     bonus: string;
     resources: Resources;
     buildings: { [position: number]: BuildingInstance };
-    lastResourceUpdate?: Timestamp;
+    lastResourceUpdate?: number;
     speedUpPoints?: number; // Points d'accélération disponibles
     bonuses?: {
         [key in keyof Resources]?: number;
