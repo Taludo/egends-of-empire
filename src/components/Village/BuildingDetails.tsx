@@ -9,7 +9,6 @@ import {
     HStack,
     Text,
     Icon,
-    Progress,
     Button,
     Divider,
     useDisclosure,
@@ -22,7 +21,7 @@ import {
 } from '@chakra-ui/react';
 import { BuildingInstance } from '../../types/game';
 import { BUILDINGS } from '../../data/buildings';
-import { FaArrowUp, FaHammer, FaClock, FaTrash } from 'react-icons/fa';
+import { FaArrowUp, FaTrash } from 'react-icons/fa';
 import { useRef } from 'react';
 
 interface BuildingDetailsProps {

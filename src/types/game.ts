@@ -1,18 +1,15 @@
 import { Timestamp } from 'firebase/firestore';
+import { IconType } from 'react-icons';
 
 export interface Resources {
     wood: number;
     iron: number;
     stone: number;
     food: number;
+    [key: string]: number; // Permet l'indexation dynamique
 }
 
-export interface ProductionRates {
-    wood: number;
-    iron: number;
-    stone: number;
-    food: number;
-}
+export interface ProductionRates extends Resources {}
 
 export interface Building {
     id: string;
@@ -27,6 +24,7 @@ export interface Building {
     requirements: {
         level: number;
     };
+    icon: IconType;
 }
 
 export interface BuildingInstance {
@@ -56,8 +54,8 @@ export interface UserVillage {
     bonus: string;
     resources: Resources;
     buildings: { [position: number]: BuildingInstance };
-    lastResourceUpdate: Timestamp;
-    speedUpPoints: number; // Points d'accélération disponibles
+    lastResourceUpdate?: Timestamp;
+    speedUpPoints?: number; // Points d'accélération disponibles
     bonuses?: {
         [key in keyof Resources]?: number;
     };

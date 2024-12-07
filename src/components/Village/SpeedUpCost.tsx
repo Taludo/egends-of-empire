@@ -64,7 +64,6 @@ export const SpeedUpCost = ({
             <Modal 
                 isOpen={isOpen} 
                 onClose={onClose}
-                zIndex={2000}
             >
                 <ModalOverlay />
                 <ModalContent>
