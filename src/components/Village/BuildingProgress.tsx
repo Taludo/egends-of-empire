@@ -12,9 +12,8 @@ import {
     ModalContent,
 } from '@chakra-ui/react';
 import { FaClock, FaHammer } from 'react-icons/fa';
-import { BuildingInstance, Resources } from '../../types/game';
+import { BuildingInstance, Resources, Building } from '../../types/game';
 import { BUILDINGS } from '../../data/buildings';
-import { Timestamp } from 'firebase/firestore';
 import { SpeedUpCost } from './SpeedUpCost';
 
 interface BuildingProgressProps {
@@ -23,14 +22,6 @@ interface BuildingProgressProps {
     onSpeedUp: (usePoints: boolean) => void;
     availablePoints: number;
     currentResources: Resources;
-}
-
-interface SpeedUpCostProps {
-    speedUpCount: number;
-    onSpeedUp: (usePoints: boolean) => void;
-    availablePoints: number;
-    currentResources: Resources;
-    onOpenSpeedUp: () => void;
 }
 
 export const BuildingProgress = ({ 
@@ -44,25 +35,24 @@ export const BuildingProgress = ({
     const [timeLeft, setTimeLeft] = useState('');
     const [isSpeedUpOpen, setIsSpeedUpOpen] = useState(false);
     const toast = useToast();
+    const buildingInfo = BUILDINGS[building.type] as Building;
 
     useEffect(() => {
         const calculateProgress = () => {
-            // Vérifier si le bâtiment est en construction
-            if (!building.constructionEndTime || !building.constructionStartTime) {
+            if (!building.constructionStartTime) {
                 setProgress(100);
                 setTimeLeft('Terminé');
                 return true;
             }
 
-            const now = Timestamp.now().toMillis();
-            const start = building.constructionStartTime.toMillis();
-            const end = building.constructionEndTime.toMillis();
-            const total = end - start;
+            const now = Date.now();
+            const start = building.constructionStartTime;
+            const total = buildingInfo.buildTime * 1000; // Convertir en millisecondes
             const elapsed = now - start;
             const newProgress = Math.min(100, (elapsed / total) * 100);
 
             // Calculer le temps restant
-            const remainingMs = Math.max(0, end - now);
+            const remainingMs = Math.max(0, total - elapsed);
             const remainingMinutes = Math.floor(remainingMs / (1000 * 60));
             const remainingSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
 
@@ -74,7 +64,7 @@ export const BuildingProgress = ({
                 onConstructionComplete();
                 toast({
                     title: "Construction terminée !",
-                    description: `Le ${BUILDINGS[building.id].name} est terminé !`,
+                    description: `Le ${buildingInfo.name} est terminé !`,
                     status: "success",
                     duration: 5000,
                     isClosable: true,
@@ -97,7 +87,7 @@ export const BuildingProgress = ({
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [building, onConstructionComplete, toast]);
+    }, [building, onConstructionComplete, toast, buildingInfo]);
 
     const onSpeedUpClose = () => {
         setIsSpeedUpOpen(false);
@@ -108,7 +98,7 @@ export const BuildingProgress = ({
             <HStack justify="space-between">
                 <HStack>
                     <Icon as={FaHammer} />
-                    <Text fontWeight="bold">{BUILDINGS[building.id].name}</Text>
+                    <Text fontWeight="bold">{buildingInfo.name}</Text>
                 </HStack>
                 <HStack spacing={4}>
                     <HStack>
