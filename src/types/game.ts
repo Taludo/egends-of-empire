@@ -21,6 +21,7 @@ export interface Building {
     buildTime: number;
     production?: Partial<Resources>;
     icon?: IconType;
+    description?: string;
 }
 
 export interface BuildingInstance {

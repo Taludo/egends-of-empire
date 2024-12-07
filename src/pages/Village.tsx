@@ -1,37 +1,28 @@
 import { useEffect, useState } from 'react';
 import {
     Container,
-    Box,
+    VStack,
     Heading,
     Text,
-    VStack,
-    HStack,
-    Progress,
-    SimpleGrid,
-    Button,
+    Box,
+    useToast,
     Modal,
     ModalOverlay,
     ModalContent,
     ModalHeader,
-    ModalCloseButton,
     ModalBody,
-    ModalFooter,
+    ModalCloseButton,
     useDisclosure,
-    useToast,
-    Spinner,
 } from '@chakra-ui/react';
-import { auth, db } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc, Timestamp, setDoc, deleteField } from 'firebase/firestore';
-import { UserVillage, ProductionRates } from '../types/game';
-import { BuildingsList } from '../components/Village/BuildingsList';
-import { ResourcesDisplay } from '../components/Village/ResourcesDisplay';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
 import { VillageMap } from '../components/Village/VillageMap';
-import { useNavigate } from 'react-router-dom';
-import { FaTree, FaHammer, FaMountain, FaWarehouse } from 'react-icons/fa';
-import { BuildingModal } from '../components/Village/BuildingModal';
 import { ProductionStats } from '../components/Village/ProductionStats';
-import { SpeedUpPoints } from '../components/Village/SpeedUpPoints';
+import { BuildingProgress } from '../components/Village/BuildingProgress';
 import { BuildingDetails } from '../components/Village/BuildingDetails';
+import { Resources, BuildingInstance, UserVillage } from '../types/game';
+import { BUILDINGS } from '../data/buildings';
 
 const BASE_PRODUCTION_RATES: ProductionRates = {
     wood: 10,
@@ -78,13 +69,12 @@ export const Village = () => {
     const [village, setVillage] = useState<UserVillage | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [productionRates, setProductionRates] = useState<ProductionRates>(BASE_PRODUCTION_RATES);
-    const navigate = useNavigate();
-    const toast = useToast();
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
-    const [isBuildingModalOpen, setIsBuildingModalOpen] = useState(false);
     const [selectedBuilding, setSelectedBuilding] = useState<BuildingInstance | null>(null);
     const [isBuildingDetailsOpen, setIsBuildingDetailsOpen] = useState(false);
+    const { currentUser } = useAuth();
+    const toast = useToast();
 
     const calculateProductionRates = (villageData: UserVillage): ProductionRates => {
         const rates = { ...BASE_PRODUCTION_RATES };
@@ -117,13 +107,13 @@ export const Village = () => {
     const updateResources = async (villageData: UserVillage): Promise<UserVillage> => {
         try {
             if (!villageData.lastResourceUpdate) {
-                villageData.lastResourceUpdate = Timestamp.now();
+                villageData.lastResourceUpdate = new Date();
                 return villageData;
             }
 
-            const now = Timestamp.now();
+            const now = new Date();
             const lastUpdate = villageData.lastResourceUpdate;
-            const secondsPassed = now.seconds - lastUpdate.seconds;
+            const secondsPassed = (now.getTime() - lastUpdate.getTime()) / 1000;
             const hoursPassed = secondsPassed / 3600;
 
             if (hoursPassed > 0) {
@@ -167,7 +157,7 @@ export const Village = () => {
         if (!building) {
             // Ouvrir le modal de construction pour les emplacements vides
             setSelectedPosition(position);
-            setIsBuildingModalOpen(true);
+            onOpen();
         } else {
             // Ouvrir le modal de détails pour les bâtiments existants
             setSelectedBuilding(building);
@@ -242,12 +232,12 @@ export const Village = () => {
             }
 
             // Créer l'instance du bâtiment
-            const now = Timestamp.now();
+            const now = new Date();
             const buildingInstance: BuildingInstance = {
                 id: buildingId,
                 level: 1,
                 constructionStartTime: now,
-                constructionEndTime: Timestamp.fromMillis(now.toMillis() + building.buildTime * 1000)
+                constructionEndTime: new Date(now.getTime() + building.buildTime * 1000)
             };
 
             // Mettre à jour les bâtiments
@@ -280,7 +270,7 @@ export const Village = () => {
                 isClosable: true,
             });
 
-            setIsBuildingModalOpen(false);
+            onClose();
         } catch (error) {
             console.error('Erreur lors de la construction:', error);
             toast({
@@ -331,72 +321,9 @@ export const Village = () => {
         }
     };
 
-    const handleSpeedUpConstruction = async (building: BuildingInstance, position: number, usePoints: boolean) => {
+    const handleSpeedUpConstruction = async (building: BuildingInstance, position: number) => {
         if (!village) return;
 
-        // Si on utilise des points d'accélération
-        if (usePoints) {
-            if (village.speedUpPoints < 1) {
-                toast({
-                    title: "Points insuffisants",
-                    description: "Vous n'avez pas assez de points d'accélération",
-                    status: "error",
-                    duration: 3000,
-                    isClosable: true,
-                });
-                return;
-            }
-
-            // Terminer immédiatement la construction
-            const updatedBuilding = {
-                ...building,
-                constructionEndTime: Timestamp.now(),
-                speedUpCount: (building.speedUpCount || 0) + 1,
-            };
-            delete updatedBuilding.constructionStartTime;
-
-            // Mettre à jour le village
-            const updatedVillage = {
-                ...village,
-                buildings: {
-                    ...village.buildings,
-                    [position]: updatedBuilding,
-                },
-                speedUpPoints: village.speedUpPoints - 1,
-            };
-
-            // Sauvegarder dans Firebase
-            try {
-                await updateDoc(doc(db, 'villages', village.id), {
-                    [`buildings.${position}.constructionEndTime`]: Timestamp.now(),
-                    [`buildings.${position}.constructionStartTime`]: deleteField(),
-                    [`buildings.${position}.speedUpCount`]: (building.speedUpCount || 0) + 1,
-                    speedUpPoints: village.speedUpPoints - 1,
-                });
-
-                setVillage(updatedVillage);
-                handleConstructionComplete(position);
-                toast({
-                    title: "Construction terminée !",
-                    description: "1 point d'accélération utilisé pour terminer la construction",
-                    status: "success",
-                    duration: 3000,
-                    isClosable: true,
-                });
-            } catch (error) {
-                console.error('Error updating village:', error);
-                toast({
-                    title: "Erreur",
-                    description: "Impossible de terminer la construction",
-                    status: "error",
-                    duration: 3000,
-                    isClosable: true,
-                });
-            }
-            return;
-        }
-
-        // Si on utilise des ressources (code existant)
         const speedUpCount = building.speedUpCount || 0;
         const cost = {
             wood: Math.floor(100 * Math.pow(1.5, speedUpCount)),
@@ -426,8 +353,8 @@ export const Village = () => {
         });
 
         // Mettre à jour le temps de construction
-        const currentTime = Timestamp.now().toMillis();
-        const endTime = building.constructionEndTime?.toMillis() || currentTime;
+        const currentTime = new Date().getTime();
+        const endTime = building.constructionEndTime?.getTime() || currentTime;
         const newEndTime = Math.max(
             currentTime + 10000, // minimum 10 secondes
             endTime - 5 * 60 * 1000 // réduire de 5 minutes
@@ -436,7 +363,7 @@ export const Village = () => {
         // Mettre à jour le bâtiment
         const updatedBuilding = {
             ...building,
-            constructionEndTime: Timestamp.fromMillis(newEndTime),
+            constructionEndTime: new Date(newEndTime),
             speedUpCount: speedUpCount + 1,
         };
 
@@ -543,15 +470,14 @@ export const Village = () => {
 
     useEffect(() => {
         const fetchVillage = async () => {
-            if (!auth.currentUser) {
-                navigate('/');
+            if (!currentUser) {
                 return;
             }
 
             try {
                 setIsLoading(true);
                 const villagesRef = collection(db, 'villages');
-                const q = query(villagesRef, where('userId', '==', auth.currentUser.uid));
+                const q = query(villagesRef, where('userId', '==', currentUser.uid));
                 const querySnapshot = await getDocs(q);
 
                 if (querySnapshot.empty) {
@@ -562,7 +488,6 @@ export const Village = () => {
                         duration: 5000,
                         isClosable: true,
                     });
-                    navigate('/');
                     return;
                 }
 
@@ -588,7 +513,6 @@ export const Village = () => {
                     duration: 5000,
                     isClosable: true,
                 });
-                navigate('/');
             } finally {
                 setIsLoading(false);
             }
@@ -598,7 +522,7 @@ export const Village = () => {
         const interval = setInterval(fetchVillage, 60000); // Rafraîchir toutes les minutes
 
         return () => clearInterval(interval);
-    }, [navigate, toast]);
+    }, [currentUser, toast]);
 
     if (isLoading) {
         return (
@@ -606,7 +530,6 @@ export const Village = () => {
                 <VStack spacing={8} align="center">
                     <Heading>Legends of Empire</Heading>
                     <Text>Chargement de votre village...</Text>
-                    <Spinner size="xl" />
                 </VStack>
             </Container>
         );
@@ -622,8 +545,7 @@ export const Village = () => {
                 <HStack justify="space-between" align="center">
                     <Heading size="lg">{village.name}</Heading>
                     <HStack spacing={4}>
-                        <SpeedUpPoints points={village.speedUpPoints} />
-                        <ResourcesDisplay resources={village.resources} productionRates={productionRates} />
+                        <Resources resources={village.resources} productionRates={productionRates} />
                     </HStack>
                 </HStack>
 
@@ -637,20 +559,19 @@ export const Village = () => {
                         onConstructionComplete={handleConstructionComplete}
                         onSpeedUpConstruction={handleSpeedUpConstruction}
                         onBuildingClick={handleBuildingClick}
-                        availablePoints={village.speedUpPoints}
                         resources={village.resources}
                     />
                 </Box>
 
-                <Modal isOpen={isBuildingModalOpen} onClose={() => setIsBuildingModalOpen(false)}>
+                <Modal isOpen={isOpen} onClose={onClose}>
                     <ModalOverlay />
                     <ModalContent>
                         <ModalHeader>Choisir un bâtiment</ModalHeader>
                         <ModalCloseButton />
                         <ModalBody>
-                            <BuildingModal
-                                isOpen={isBuildingModalOpen}
-                                onClose={() => setIsBuildingModalOpen(false)}
+                            <BuildingProgress
+                                isOpen={isOpen}
+                                onClose={onClose}
                                 onBuildingSelect={handleBuildingSelect}
                                 villageLevel={village.level}
                             />

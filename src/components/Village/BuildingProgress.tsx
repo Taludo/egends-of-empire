@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-    Box,
     Progress,
     Text,
     VStack,
@@ -22,6 +21,14 @@ interface BuildingProgressProps {
     onSpeedUp: (usePoints: boolean) => void;
     availablePoints: number;
     currentResources: Resources;
+}
+
+interface SpeedUpCostProps {
+    speedUpCount: number;
+    onSpeedUp: (usePoints: boolean) => void;
+    availablePoints: number;
+    currentResources: Resources;
+    onOpenSpeedUp: () => void;
 }
 
 export const BuildingProgress = ({ 
