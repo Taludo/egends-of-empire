@@ -126,7 +126,6 @@ export const BuildingProgress = ({
             <Modal 
                 isOpen={isSpeedUpOpen} 
                 onClose={onSpeedUpClose}
-                zIndex={2000} // Valeur plus élevée pour être au-dessus des autres modals
             >
                 <ModalOverlay />
                 <ModalContent>

@@ -17,7 +17,7 @@ import {
     Divider,
     useColorModeValue,
 } from '@chakra-ui/react';
-import { GiWoodPile, GiAnvil, GiStonePile, GiWheat, GiTwoCoins } from 'react-icons/gi';
+import { GiWoodPile, GiAnvil, GiStonePile, GiWheat } from 'react-icons/gi';
 import { UserVillage, BuildingInstance, Resources } from '../../types/game';
 import { BUILDINGS } from '../../data/buildings';
 
@@ -31,7 +31,6 @@ interface ResourceIconMapping {
     iron: typeof GiAnvil;
     stone: typeof GiStonePile;
     food: typeof GiWheat;
-    gold: typeof GiTwoCoins;
 }
 
 const RESOURCE_ICONS: ResourceIconMapping = {
@@ -39,7 +38,6 @@ const RESOURCE_ICONS: ResourceIconMapping = {
     iron: GiAnvil,
     stone: GiStonePile,
     food: GiWheat,
-    gold: GiTwoCoins,
 };
 
 export const ProductionStats = ({ village }: ProductionStatsProps) => {
@@ -68,7 +66,6 @@ export const ProductionStats = ({ village }: ProductionStatsProps) => {
             iron: 0,
             stone: 0,
             food: 0,
-            gold: 0,
         };
 
         Object.values(village.buildings).forEach(building => {
