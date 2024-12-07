@@ -1,4 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
 import { IconType } from 'react-icons';
 
 export interface Resources {
@@ -6,25 +5,21 @@ export interface Resources {
     stone: number;
     iron: number;
     food: number;
-    [key: string]: number; // Permet l'indexation dynamique
+    [key: string]: number;
 }
-
-export interface ProductionRates extends Resources {}
 
 export interface Building {
     id?: string;
     name: string;
-    description: string;
     type: string;
     level: number;
     maxLevel: number;
-    production?: Partial<Resources>;
-    storage?: Partial<Resources>;
-    cost: Partial<Resources>;
-    buildTime: number;
     requirements: {
         level: number;
     };
+    cost: Partial<Resources>;
+    buildTime: number;
+    production?: Partial<Resources>;
     icon?: IconType;
 }
 
@@ -33,33 +28,16 @@ export interface BuildingInstance {
     type: string;
     level: number;
     constructionStartTime?: number;
-    constructionEndTime?: number;
-    speedUpCount?: number; // Nombre de fois que la construction a été accélérée
+    speedUpCount?: number;
 }
-
-export interface Village {
-    id: string;
-    name: string;
-    description: string;
-    bonus: string;
-    image?: string;
-}
-
-export type VillageType = 'roman' | 'gaulois' | 'teuton';
 
 export interface UserVillage {
     id: string;
     userId: string;
     name: string;
-    type: VillageType;
     level: number;
-    bonus: string;
     resources: Resources;
     buildings: { [position: number]: BuildingInstance };
     lastResourceUpdate?: number;
-    speedUpPoints?: number; // Points d'accélération disponibles
-    bonuses?: {
-        [key in keyof Resources]?: number;
-    };
-    createdAt?: Timestamp;
+    speedUpPoints?: number;
 }
