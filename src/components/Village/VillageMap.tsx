@@ -3,17 +3,16 @@ import {
     Box, 
     Text, 
     VStack,
-    Tooltip,
     useColorModeValue,
     Icon
 } from '@chakra-ui/react';
-import { BuildingInstance } from '../../types/game';
+import { BuildingInstance, Building } from '../../types/game';
 import { BUILDINGS } from '../../data/buildings';
 import { BuildingProgress } from './BuildingProgress';
 import { Timestamp } from 'firebase/firestore';
 
 interface VillageMapProps {
-    buildings: { [position: number]: BuildingInstance };
+    buildings: { [key: number]: BuildingInstance };
     onConstructionComplete: (position: number) => void;
     onSpeedUpConstruction: (building: BuildingInstance, position: number, usePoints: boolean) => void;
     onBuildingClick: (position: number) => void;

@@ -20,13 +20,15 @@ interface SpeedUpCostProps {
     onSpeedUp: (usePoints: boolean) => void;
     availablePoints: number;
     currentResources: Resources;
+    onOpenSpeedUp: () => void;
 }
 
 export const SpeedUpCost = ({
     speedUpCount,
     onSpeedUp,
     availablePoints,
-    currentResources
+    currentResources,
+    onOpenSpeedUp
 }: SpeedUpCostProps) => {
     const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -55,7 +57,10 @@ export const SpeedUpCost = ({
             <Button
                 size="sm"
                 colorScheme="blue"
-                onClick={onOpen}
+                onClick={() => {
+                    onOpenSpeedUp();
+                    onOpen();
+                }}
                 leftIcon={<Icon as={FaBolt} />}
             >
                 Accélérer
@@ -64,6 +69,7 @@ export const SpeedUpCost = ({
             <Modal 
                 isOpen={isOpen} 
                 onClose={onClose}
+                onOpen={onOpenSpeedUp}
             >
                 <ModalOverlay />
                 <ModalContent>
