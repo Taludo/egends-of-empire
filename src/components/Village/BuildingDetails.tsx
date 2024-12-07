@@ -1,150 +1,172 @@
 import {
-    Modal,
-    ModalOverlay,
-    ModalContent,
-    ModalHeader,
-    ModalBody,
-    ModalCloseButton,
     VStack,
     HStack,
     Text,
-    Icon,
     Button,
+    Progress,
+    Icon,
     Divider,
-    useDisclosure,
-    AlertDialog,
-    AlertDialogBody,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogContent,
-    AlertDialogOverlay,
+    Box,
+    Tooltip,
+    Badge,
 } from '@chakra-ui/react';
-import { BuildingInstance, Building } from '../../types/game';
+import { FaClock, FaHammer, FaBolt, FaArrowUp, FaTrash } from 'react-icons/fa';
+import { BuildingInstance, Resources } from '../../types/game';
 import { BUILDINGS } from '../../data/buildings';
-import { FaArrowUp, FaTrash } from 'react-icons/fa';
-import { useRef } from 'react';
+import { SpeedUpCost } from './SpeedUpCost';
+import { useEffect, useState } from 'react';
 
 interface BuildingDetailsProps {
     building: BuildingInstance;
     position: number;
-    isOpen: boolean;
-    onClose: () => void;
-    onUpgrade?: () => void;
-    onDestroy: (position: number) => void;
+    onConstructionComplete: (position: number) => void;
+    onSpeedUpConstruction: (building: BuildingInstance, position: number, usePoints: boolean) => void;
+    speedUpPoints: number;
+    resources: Resources;
 }
 
-export const BuildingDetails = ({ 
-    building, 
+export const BuildingDetails = ({
+    building,
     position,
-    isOpen, 
-    onClose, 
-    onUpgrade,
-    onDestroy 
+    onConstructionComplete,
+    onSpeedUpConstruction,
+    speedUpPoints,
+    resources,
 }: BuildingDetailsProps) => {
-    const buildingInfo = BUILDINGS[building.type] as Building;
-    const { isOpen: isAlertOpen, onOpen: onAlertOpen, onClose: onAlertClose } = useDisclosure();
-    const cancelRef = useRef<HTMLButtonElement>(null);
+    const [timeLeft, setTimeLeft] = useState<number>(0);
+    const [progress, setProgress] = useState<number>(0);
+    const buildingInfo = BUILDINGS[building.type];
 
-    const handleDestroy = () => {
-        onDestroy(position);
-        onAlertClose();
-        onClose();
+    useEffect(() => {
+        const updateProgress = () => {
+            if (!building.constructionStartTime || !building.constructionEndTime) return;
+
+            const now = new Date().getTime();
+            const start = building.constructionStartTime.getTime();
+            const end = building.constructionEndTime.getTime();
+            const total = end - start;
+            const elapsed = now - start;
+            const remaining = end - now;
+
+            if (remaining <= 0) {
+                onConstructionComplete(position);
+                return;
+            }
+
+            setTimeLeft(Math.max(0, Math.floor(remaining / 1000)));
+            setProgress(Math.min(100, (elapsed / total) * 100));
+        };
+
+        updateProgress();
+        const interval = setInterval(updateProgress, 1000);
+        return () => clearInterval(interval);
+    }, [building, position, onConstructionComplete]);
+
+    const formatTime = (seconds: number): string => {
+        if (seconds <= 0) return '0s';
+        
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = seconds % 60;
+        
+        const parts = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds}s`);
+        
+        return parts.join(' ');
     };
 
+    const getProductionInfo = () => {
+        if (!buildingInfo.production) return null;
+        
+        return (
+            <VStack align="start" spacing={2}>
+                <Text fontWeight="bold">Production par heure :</Text>
+                {Object.entries(buildingInfo.production).map(([resource, amount]) => (
+                    <HStack key={resource} spacing={2}>
+                        <Icon as={FaHammer} />
+                        <Text>{`${amount} ${resource}`}</Text>
+                    </HStack>
+                ))}
+            </VStack>
+        );
+    };
+
+    const isUnderConstruction = building.constructionStartTime && building.constructionEndTime;
+
     return (
-        <>
-            <Modal isOpen={isOpen} onClose={onClose}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>
+        <Box
+            p={4}
+            borderWidth="1px"
+            borderRadius="lg"
+            bg="white"
+            shadow="sm"
+        >
+            <VStack spacing={4} align="stretch">
+                <HStack justify="space-between">
+                    <VStack align="start" spacing={1}>
+                        <Text fontSize="xl" fontWeight="bold">
+                            {buildingInfo.name}
+                            <Badge ml={2} colorScheme="blue">Niveau {building.level}</Badge>
+                        </Text>
+                        <Text color="gray.600">{buildingInfo.description}</Text>
+                    </VStack>
+                </HStack>
+
+                <Divider />
+
+                {isUnderConstruction ? (
+                    <VStack spacing={3} align="stretch">
+                        <Text fontWeight="bold">Construction en cours</Text>
+                        <Progress
+                            value={progress}
+                            size="sm"
+                            colorScheme="blue"
+                            borderRadius="full"
+                        />
                         <HStack>
-                            {buildingInfo.icon && <Icon as={buildingInfo.icon} boxSize={6} />}
-                            <Text>{buildingInfo.name}</Text>
+                            <Icon as={FaClock} />
+                            <Text>{formatTime(timeLeft)} restant</Text>
                         </HStack>
-                    </ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody pb={6}>
-                        <VStack spacing={4} align="stretch">
-                            <HStack justify="space-between">
-                                <Text fontWeight="bold">Niveau actuel :</Text>
-                                <Text>{building.level}</Text>
+                        <SpeedUpCost
+                            speedUpCount={building.speedUpCount || 0}
+                            onSpeedUp={(usePoints) => onSpeedUpConstruction(building, position, usePoints)}
+                            availablePoints={speedUpPoints}
+                            currentResources={resources}
+                            onOpenSpeedUp={() => {}}
+                        />
+                    </VStack>
+                ) : (
+                    <>
+                        {getProductionInfo()}
+                        <VStack align="start" spacing={2} mt={2}>
+                            <Text fontWeight="bold">Prochain niveau :</Text>
+                            <HStack spacing={4}>
+                                <Tooltip label="Améliorer le bâtiment">
+                                    <Button
+                                        leftIcon={<Icon as={FaArrowUp} />}
+                                        colorScheme="green"
+                                        size="sm"
+                                    >
+                                        Améliorer
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip label="Détruire le bâtiment">
+                                    <Button
+                                        leftIcon={<Icon as={FaTrash} />}
+                                        colorScheme="red"
+                                        variant="outline"
+                                        size="sm"
+                                    >
+                                        Détruire
+                                    </Button>
+                                </Tooltip>
                             </HStack>
-
-                            <VStack align="stretch" spacing={2}>
-                                <Text fontWeight="bold">Production :</Text>
-                                {buildingInfo.production && Object.entries(buildingInfo.production).map(([resource, amount]) => (
-                                    <HStack key={resource} justify="space-between">
-                                        <Text>{resource} :</Text>
-                                        <Text>{amount * building.level} / heure</Text>
-                                    </HStack>
-                                ))}
-                            </VStack>
-
-                            <Divider />
-
-                            <VStack align="stretch" spacing={2}>
-                                <Text fontWeight="bold">Prochain niveau :</Text>
-                                <HStack justify="space-between">
-                                    <Text>Niveau {building.level + 1}</Text>
-                                    {buildingInfo.production && (
-                                        <Text color="green.500">
-                                            +{Object.values(buildingInfo.production)[0]} / heure
-                                        </Text>
-                                    )}
-                                </HStack>
-                            </VStack>
-
-                            <Button
-                                leftIcon={<Icon as={FaArrowUp} />}
-                                colorScheme="blue"
-                                onClick={onUpgrade}
-                                isDisabled={!onUpgrade}
-                            >
-                                Améliorer au niveau {building.level + 1}
-                            </Button>
-
-                            <Divider />
-
-                            <Button
-                                leftIcon={<Icon as={FaTrash} />}
-                                colorScheme="red"
-                                variant="outline"
-                                onClick={onAlertOpen}
-                            >
-                                Détruire le bâtiment
-                            </Button>
                         </VStack>
-                    </ModalBody>
-                </ModalContent>
-            </Modal>
-
-            <AlertDialog
-                isOpen={isAlertOpen}
-                leastDestructiveRef={cancelRef}
-                onClose={onAlertClose}
-            >
-                <AlertDialogOverlay>
-                    <AlertDialogContent>
-                        <AlertDialogHeader fontSize="lg" fontWeight="bold">
-                            Détruire le bâtiment
-                        </AlertDialogHeader>
-
-                        <AlertDialogBody>
-                            Êtes-vous sûr de vouloir détruire ce {buildingInfo.name} niveau {building.level} ?
-                            Cette action est irréversible.
-                        </AlertDialogBody>
-
-                        <AlertDialogFooter>
-                            <Button ref={cancelRef} onClick={onAlertClose}>
-                                Annuler
-                            </Button>
-                            <Button colorScheme="red" onClick={handleDestroy} ml={3}>
-                                Détruire
-                            </Button>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialogOverlay>
-            </AlertDialog>
-        </>
+                    </>
+                )}
+            </VStack>
+        </Box>
     );
 };
